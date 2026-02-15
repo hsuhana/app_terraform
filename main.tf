@@ -10,6 +10,7 @@ variable my_ip {}
 variable instance_type {}
 // variable my_public_key {}
 variable public_key_location {}
+variable private_key_location {}
 
 // "provider_resourceType" "the name we can define"
 resource "aws_vpc" "myapp-vpc" {
@@ -196,6 +197,7 @@ resource "aws_instance" "myapp-server" {
     availability_zone = var.avail_zone
     // for accessing from broswer and SSH access
     associate_public_ip_address = true
+
     // associate the kay with the server
     key_name = aws_key_pair.ssh-key.key_name
 // entry point script executed at EC2 server when EC2 initiated
@@ -212,7 +214,36 @@ resource "aws_instance" "myapp-server" {
 
 # EOF
 
-user_data = file("entry-script.sh")
+// user_data = file("entry-script.sh")
+
+    // define the coneection expilictly to the remote server, specific to provisioner
+    connection {
+        type = "ssh"
+        host = self.public_ip
+        user = "ec2-user"
+        private_key = file(var.private_key_location)
+    }
+
+    // file provisioner for copying local script to remote server
+    provisioner "file" {
+        source = "entry-script.sh"
+        destination = "/home/ec2-user/entry-script-on-ec2.sh"
+    }
+
+    // terraform function for script
+    provisioner "remote-exec" {
+
+        // 1st way to execute script
+        // inline = ["/home/ec2-user/entry-script-on-ec2.sh"]
+
+        // 2nd way to execute script
+        script = "entry-script.sh"
+    }
+
+    // local provisioner
+    # provisioner "local-exec" {
+    #     command = "echo ${self.public_ip} > output.txt"
+    # }
 
     // execute the script when user_data block is changed
     user_data_replace_on_change = true
